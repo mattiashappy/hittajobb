@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hittajobb.se - Hitta ditt nästa jobb</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
+    <!-- jQuery and jQuery UI CSS -->
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+</head>
+<body>
+
+    <header class="site-header">
+        <div class="container">
+            <nav class="navbar navbar-expand-lg navbar-dark">
+                <a class="navbar-brand" href="/">
+                    <img src="{{ url_for('static', filename='assets/logo.png') }}" alt="hittajobb.se" height="30">
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/">Lediga jobb</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">Jobb & karriär</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link btn btn-light" href="/skapa_annons">Skapa annons</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link btn btn-outline-light" href="#">Logga in</a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            
+            <div class="header-content text-center">
+                <h1 class="text-white mb-4">Hitta ditt nya jobb</h1>
+                <p class="text-white mb-5">På hittajobb.se hittar du lediga jobb i hela Sverige</p>
+            </div>
+            
+            <form action="/" method="get" class="job-search-form">
+                <div class="row g-2">
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" name="occupation" placeholder="Jobbtitel eller sökord" value="{{ request.args.get('occupation', '') }}">
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-map-marker-alt"></i></span>
+                            <input type="text" class="form-control" id="location" name="location" placeholder="Stad, län eller land" value="{{ request.args.get('location', '') }}">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">Hitta jobb</button>
+                    </div>
+                </div>
+            </form>
+            
+            <p class="job-count text-white text-center mt-3">
+                {% if request.args.get('occupation') %}
+                    ({{ request.args.get('occupation') }})
+                {% endif %}
+                {{ total_jobs }} lediga jobb - {{ new_jobs_count }} nya jobb bara idag!
+            </p>
+        </div>
+    </header>
+
+<main class="container mt-4">
+    <div class="row">
+        <div class="col-lg-12">
+            
+            <!-- Job Listings -->
+            <div class="job-listings mt-4">
+                {% for ad in job_ads.items %}
+                <div class="job-box mb-3 p-3 border rounded">
+                    <div class="job-content">
+                        <h5 class="mb-2">{{ ad.title }}</h5>
+                        <ul class="list-unstyled mb-2">
+                            <li><i class="fas fa-briefcase mr-2"></i> {{ ad.company }}</li>
+                            <li><i class="fas fa-map-marker-alt mr-2"></i> {{ ad.location }}</li>
+                            <li><i class="fas fa-calendar-alt mr-2"></i> {{ ad.published_at.strftime('%Y-%m-%d') }}</li>
+                        </ul>
+                        <p class="job-description mb-0" style="font-size: 0.9rem;">{{ ad.description[:500] }}...</p>
+                    </div>
+                    <div class="job-right mt-2 text-end">
+                        {% if ad.application_url %}
+                            <a href="{{ ad.application_url }}" class="btn btn-light" target="_blank">Läs mer</a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% for page in job_ads.iter_pages() %}
+                        {% if page %}
+                            <li class="page-item {% if page == job_ads.page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('index', page=page, occupation=request.args.get('occupation', ''), location=request.args.get('location', '')) }}">{{ page }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+</main>
+
+<!-- Include jQuery and jQuery UI -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+
+<script>
+    // Import locations from external file
+    fetch('{{ url_for("static", filename="locations.json") }}')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok ' + response.statusText);
+            }
+            return response.json();
+        })
+        .then(locations => {
+            // jQuery UI Autocomplete
+            $(function() {
+                $("#location").autocomplete({
+                    source: function(request, response) {
+                        const matches = $.grep(locations, function(location) {
+                            return location.toLowerCase().startsWith(request.term.toLowerCase());
+                        });
+                        response(matches);
+                    }
+                });
+            });
+        })
+        .catch(error => console.error('Error loading locations:', error));
+</script>
+</body>
+</html>
